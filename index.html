@@ -86,6 +86,17 @@
         align-items: center;
         gap: 5px;
     }
+    /* Style for checkbox label to align checkbox properly */
+    label.checkbox-label {
+        width: 100%; /* Ensure it takes full width */
+        justify-content: flex-start; /* Align checkbox to the left */
+        cursor: pointer;
+    }
+    input[type="checkbox"] {
+        margin-right: 5px; /* Space between checkbox and text */
+        accent-color: #007bff; /* Highlight color for checkbox */
+    }
+
     button {
       margin: 5px 0;
       padding: 8px 15px;
@@ -159,6 +170,9 @@
       <label>Image Y-offset:
         <input type="number" id="offsetInput" value="80" style="width: 60px;"> px
       </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="showTitleFullscreen" checked> Show Title in Fullscreen
+      </label>
       <button onclick="shuffleSlides()">🔀 Shuffle Slides</button>
       <button onclick="toggleFullScreen()">⛶ Fullscreen</button>
     </div>
@@ -186,9 +200,11 @@
     const offsetInput = document.getElementById('offsetInput');
     const slideshowContainer = document.getElementById('slideshow-container');
     const bgMusic = document.getElementById('bgMusic');
-    const controlsContainer = document.getElementById('controls-container'); // Changed from 'controls'
+    const controlsContainer = document.getElementById('controls-container');
     const title = document.getElementById('title');
     const musicInfo = document.getElementById('music-info');
+    const showTitleFullscreenCheckbox = document.getElementById('showTitleFullscreen'); // New checkbox element
+
     let mediaFiles = [];
     let musicFiles = [];
     let musicIndex = 0;
@@ -280,8 +296,14 @@
 
     document.addEventListener('fullscreenchange', () => {
       const isFull = !!document.fullscreenElement;
-      controlsContainer.classList.toggle('hidden', isFull); // Use controlsContainer
-      title.classList.toggle('hidden', isFull);
+      controlsContainer.classList.toggle('hidden', isFull);
+      
+      // Control title visibility based on checkbox and fullscreen state
+      if (isFull && !showTitleFullscreenCheckbox.checked) {
+          title.classList.add('hidden');
+      } else {
+          title.classList.remove('hidden');
+      }
     });
 
     function setupSlides() {
@@ -298,8 +320,8 @@
         } else if (file.type.startsWith('video')) {
           const video = document.createElement('video');
           video.src = URL.createObjectURL(file);
-          video.muted = true; // Videos should generally start muted due to autoplay policies
-          video.autoplay = false; // We will manually play them
+          video.muted = true;
+          video.autoplay = false;
           video.controls = false;
           slide.appendChild(video);
         }
@@ -333,9 +355,9 @@
         video.play().catch(error => {
             console.error("Error playing video:", error);
         });
-        video.onended = () => setTimeout(nextSlide, 1000); // 1 second pause after video
+        video.onended = () => setTimeout(nextSlide, 1000);
       } else {
-        setTimeout(nextSlide, 4000); // 4 seconds for images
+        setTimeout(nextSlide, 4000);
       }
     }
 
@@ -353,7 +375,7 @@
     }
 
     bgMusic.addEventListener('ended', () => {
-        if (musicFiles.length > 0) { // Ensure there are music files to play next
+        if (musicFiles.length > 0) {
             musicIndex = (musicIndex + 1) % musicFiles.length;
             playMusic(musicIndex);
         } else {
