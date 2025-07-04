@@ -45,25 +45,61 @@
     }
     .image-offset-inner {
       position: relative;
-      top: var(--image-offset, -30px);
+      top: var(--image-offset, 80px);
     }
-    #controls {
-      margin: 10px;
+    #controls-container { /* New container for both control panels */
       position: absolute;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 8px;
+      display: flex; /* Use flexbox to arrange the two control panels */
+      gap: 20px; /* Space between the two panels */
+      z-index: 20; /* Ensure controls are on top */
+    }
+    .control-panel { /* Styling for each individual panel */
+      background: rgba(0, 0, 0, 0.7); /* Slightly darker background for panels */
+      padding: 15px 20px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px; /* Space between elements within a panel */
+      border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border */
+    }
+    .control-panel h3 {
+        margin: 0 0 10px 0;
+        color: #ddd;
     }
     input[type="file"], input[type="number"] {
-      margin: 5px;
+      margin: 5px 0;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #555;
+      background-color: #333;
+      color: white;
+      width: 100%; /* Make inputs take full width of panel section */
+    }
+    label {
+        font-size: 15px;
+        color: #eee;
+        display: flex;
+        align-items: center;
+        gap: 5px;
     }
     button {
-      margin: 5px;
-      padding: 5px 10px;
+      margin: 5px 0;
+      padding: 8px 15px;
       font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      width: 100%; /* Make buttons take full width of panel section */
+    }
+    button:hover {
+      background-color: #0056b3;
     }
     #title {
       position: absolute;
@@ -71,6 +107,39 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 10;
+      color: white;
+      font-size: 2em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    }
+    #music-info {
+      font-size: 14px;
+      margin-top: 5px;
+      color: #ccc;
+      white-space: nowrap; /* Prevent text wrapping */
+      overflow: hidden; /* Hide overflow text */
+      text-overflow: ellipsis; /* Add ellipsis for overflow */
+      max-width: 200px; /* Limit width */
+    }
+    .music-controls {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+        width: 100%;
+    }
+    .music-controls button {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px; /* Larger icons for music controls */
+      cursor: pointer;
+      padding: 5px;
+      width: auto; /* Override button width for individual music control buttons */
+      flex-grow: 1; /* Allow buttons to grow */
+    }
+    .music-controls button:hover {
+        color: #aaa;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 5px;
     }
     .hidden {
       display: none !important;
@@ -78,24 +147,38 @@
   </style>
 </head>
 <body>
-  <h2 id="title">🎞️ Slideshow Viewer</h2>
+  <h2 id="title" contenteditable="true" spellcheck="false">🎞️ Slideshow Viewer</h2>
   <div id="slideshow-container"></div>
 
-  <div id="controls">
-    <label>Select Folder:
-      <input type="file" id="folderInput" webkitdirectory multiple accept="image/*,video/*">
-    </label>
-    <label>Select Music Files:
-      <input type="file" id="musicInput" multiple accept="audio/*">
-    </label>
-    <label>Image Y-offset:
-      <input type="number" id="offsetInput" value="80" style="width: 60px;"> px
-    </label>
-    <button onclick="toggleMusic()">🎵 Toggle Music</button>
-    <button onclick="toggleFullScreen()">⛶ Fullscreen</button>
+  <div id="controls-container">
+    <div id="slideshow-controls-panel" class="control-panel">
+      <h3>Slideshow Settings</h3>
+      <label>Select Folder:
+        <input type="file" id="folderInput" webkitdirectory multiple accept="image/*,video/*">
+      </label>
+      <label>Image Y-offset:
+        <input type="number" id="offsetInput" value="80" style="width: 60px;"> px
+      </label>
+      <button onclick="shuffleSlides()">🔀 Shuffle Slides</button>
+      <button onclick="toggleFullScreen()">⛶ Fullscreen</button>
+    </div>
+
+    <div id="music-controls-panel" class="control-panel">
+      <h3>Music Settings</h3>
+      <label>Select Music Files:
+        <input type="file" id="musicInput" multiple accept="audio/*">
+      </label>
+      <div class="music-controls">
+        <button onclick="prevMusic()">⏮️</button>
+        <button onclick="toggleMusic()">⏯️</button>
+        <button onclick="nextMusic()">⏭️</button>
+        <button onclick="shuffleMusic()">🔀</button>
+      </div>
+      <div id="music-info">No music playing</div>
+    </div>
   </div>
 
-  <audio id="bgMusic" loop></audio>
+  <audio id="bgMusic"></audio>
 
   <script>
     const folderInput = document.getElementById('folderInput');
@@ -103,19 +186,18 @@
     const offsetInput = document.getElementById('offsetInput');
     const slideshowContainer = document.getElementById('slideshow-container');
     const bgMusic = document.getElementById('bgMusic');
-    const controls = document.getElementById('controls');
+    const controlsContainer = document.getElementById('controls-container'); // Changed from 'controls'
     const title = document.getElementById('title');
+    const musicInfo = document.getElementById('music-info');
     let mediaFiles = [];
     let musicFiles = [];
     let musicIndex = 0;
     let slideIndex = 0;
     let slideElements = [];
+    let shuffleSlide = false;
+    let shuffleMusicMode = false;
 
     document.documentElement.style.setProperty('--image-offset', '80px');
-    offsetInput.addEventListener('input', () => {
-      document.documentElement.style.setProperty('--image-offset', offsetInput.value + 'px');
-    });
-
     offsetInput.addEventListener('input', () => {
       document.documentElement.style.setProperty('--image-offset', offsetInput.value + 'px');
     });
@@ -123,6 +205,7 @@
     folderInput.addEventListener('change', (e) => {
       mediaFiles = Array.from(e.target.files).filter(f => f.type.startsWith('image') || f.type.startsWith('video'));
       slideIndex = 0;
+      if (shuffleSlide) mediaFiles = shuffleArray(mediaFiles);
       setupSlides();
       startSlideshow();
     });
@@ -130,22 +213,58 @@
     musicInput.addEventListener('change', (e) => {
       musicFiles = Array.from(e.target.files);
       musicIndex = 0;
-      playNextMusic();
+      if (shuffleMusicMode) musicFiles = shuffleArray(musicFiles);
+      playMusic(musicIndex);
     });
 
-    function playNextMusic() {
-      if (!musicFiles.length) return;
-      const file = musicFiles[musicIndex];
-      bgMusic.src = URL.createObjectURL(file);
-      bgMusic.play();
-      musicIndex = (musicIndex + 1) % musicFiles.length;
+    function shuffleArray(array) {
+      return array.sort(() => Math.random() - 0.5);
     }
 
-    bgMusic.addEventListener('ended', playNextMusic);
+    function playMusic(index) {
+        if (!musicFiles.length) {
+            musicInfo.textContent = "No music playing";
+            return;
+        }
+        const file = musicFiles[index];
+        bgMusic.src = URL.createObjectURL(file);
+        bgMusic.play().catch(error => {
+            console.error("Error playing music:", error);
+            musicInfo.textContent = "Error playing: " + file.name;
+        });
+        musicInfo.textContent = file.name;
+    }
+
+    function nextMusic() {
+      if (!musicFiles.length) return;
+      musicIndex = (musicIndex + 1) % musicFiles.length;
+      playMusic(musicIndex);
+    }
+
+    function prevMusic() {
+      if (!musicFiles.length) return;
+      musicIndex = (musicIndex - 1 + musicFiles.length) % musicFiles.length;
+      playMusic(musicIndex);
+    }
+
+    function shuffleMusic() {
+      shuffleMusicMode = !shuffleMusicMode;
+      if (shuffleMusicMode) {
+          musicFiles = shuffleArray(musicFiles);
+      } else {
+          // If unshuffling, you might want to re-sort to original order if possible,
+          // but for simplicity, we'll just stop shuffling and continue from current.
+          // For a true unshuffle, you'd need to store the original order.
+      }
+      musicIndex = 0;
+      playMusic(musicIndex);
+    }
 
     function toggleMusic() {
       if (bgMusic.paused) {
-        bgMusic.play();
+        bgMusic.play().catch(error => {
+            console.error("Error resuming music:", error);
+        });
       } else {
         bgMusic.pause();
       }
@@ -161,7 +280,7 @@
 
     document.addEventListener('fullscreenchange', () => {
       const isFull = !!document.fullscreenElement;
-      controls.classList.toggle('hidden', isFull);
+      controlsContainer.classList.toggle('hidden', isFull); // Use controlsContainer
       title.classList.toggle('hidden', isFull);
     });
 
@@ -179,8 +298,8 @@
         } else if (file.type.startsWith('video')) {
           const video = document.createElement('video');
           video.src = URL.createObjectURL(file);
-          video.muted = true;
-          video.autoplay = false;
+          video.muted = true; // Videos should generally start muted due to autoplay policies
+          video.autoplay = false; // We will manually play them
           video.controls = false;
           slide.appendChild(video);
         }
@@ -190,7 +309,10 @@
     }
 
     function startSlideshow() {
-      if (!slideElements.length) return;
+      if (!slideElements.length) {
+          console.log("No media files to display.");
+          return;
+      }
       showSlide(slideIndex);
     }
 
@@ -208,16 +330,40 @@
       const video = currentSlide.querySelector('video');
       if (video) {
         video.currentTime = 0;
-        video.play();
-        video.onended = () => setTimeout(nextSlide, 1000);
+        video.play().catch(error => {
+            console.error("Error playing video:", error);
+        });
+        video.onended = () => setTimeout(nextSlide, 1000); // 1 second pause after video
       } else {
-        setTimeout(nextSlide, 4000);
+        setTimeout(nextSlide, 4000); // 4 seconds for images
       }
     }
 
     function nextSlide() {
       slideIndex = (slideIndex + 1) % slideElements.length;
       showSlide(slideIndex);
+    }
+
+    function shuffleSlides() {
+      shuffleSlide = true;
+      mediaFiles = shuffleArray(mediaFiles);
+      setupSlides();
+      slideIndex = 0;
+      startSlideshow();
+    }
+
+    bgMusic.addEventListener('ended', () => {
+        if (musicFiles.length > 0) { // Ensure there are music files to play next
+            musicIndex = (musicIndex + 1) % musicFiles.length;
+            playMusic(musicIndex);
+        } else {
+            musicInfo.textContent = "No music available to play next.";
+        }
+    });
+
+    // Initialize music info on load
+    if (!musicFiles.length) {
+        musicInfo.textContent = "No music selected.";
     }
   </script>
 </body>
