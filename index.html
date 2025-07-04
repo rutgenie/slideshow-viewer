@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Slideshow Viewer with Music</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      color: white;
+      font-family: sans-serif;
+      overflow: hidden;
+      text-align: center;
+    }
+    #slideshow-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .slide {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slide.active {
+      opacity: 1;
+    }
+    img, video {
+      width: 100vw;
+      height: auto;
+      max-height: none;
+      object-fit: cover;
+    }
+    .image-offset-inner {
+      position: relative;
+      top: var(--image-offset, -30px);
+    }
+    #controls {
+      margin: 10px;
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 8px;
+    }
+    input[type="file"], input[type="number"] {
+      margin: 5px;
+    }
+    button {
+      margin: 5px;
+      padding: 5px 10px;
+      font-size: 16px;
+    }
+    #title {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <h2 id="title">🎞️ Slideshow Viewer</h2>
+  <div id="slideshow-container"></div>
+
+  <div id="controls">
+    <label>Select Folder:
+      <input type="file" id="folderInput" webkitdirectory multiple accept="image/*,video/*">
+    </label>
+    <label>Select Music Files:
+      <input type="file" id="musicInput" multiple accept="audio/*">
+    </label>
+    <label>Image Y-offset:
+      <input type="number" id="offsetInput" value="80" style="width: 60px;"> px
+    </label>
+    <button onclick="toggleMusic()">🎵 Toggle Music</button>
+    <button onclick="toggleFullScreen()">⛶ Fullscreen</button>
+  </div>
+
+  <audio id="bgMusic" loop></audio>
+
+  <script>
+    const folderInput = document.getElementById('folderInput');
+    const musicInput = document.getElementById('musicInput');
+    const offsetInput = document.getElementById('offsetInput');
+    const slideshowContainer = document.getElementById('slideshow-container');
+    const bgMusic = document.getElementById('bgMusic');
+    const controls = document.getElementById('controls');
+    const title = document.getElementById('title');
+    let mediaFiles = [];
+    let musicFiles = [];
+    let musicIndex = 0;
+    let slideIndex = 0;
+    let slideElements = [];
+
+    document.documentElement.style.setProperty('--image-offset', '80px');
+    offsetInput.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--image-offset', offsetInput.value + 'px');
+    });
+
+    offsetInput.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--image-offset', offsetInput.value + 'px');
+    });
+
+    folderInput.addEventListener('change', (e) => {
+      mediaFiles = Array.from(e.target.files).filter(f => f.type.startsWith('image') || f.type.startsWith('video'));
+      slideIndex = 0;
+      setupSlides();
+      startSlideshow();
+    });
+
+    musicInput.addEventListener('change', (e) => {
+      musicFiles = Array.from(e.target.files);
+      musicIndex = 0;
+      playNextMusic();
+    });
+
+    function playNextMusic() {
+      if (!musicFiles.length) return;
+      const file = musicFiles[musicIndex];
+      bgMusic.src = URL.createObjectURL(file);
+      bgMusic.play();
+      musicIndex = (musicIndex + 1) % musicFiles.length;
+    }
+
+    bgMusic.addEventListener('ended', playNextMusic);
+
+    function toggleMusic() {
+      if (bgMusic.paused) {
+        bgMusic.play();
+      } else {
+        bgMusic.pause();
+      }
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      const isFull = !!document.fullscreenElement;
+      controls.classList.toggle('hidden', isFull);
+      title.classList.toggle('hidden', isFull);
+    });
+
+    function setupSlides() {
+      slideshowContainer.innerHTML = '';
+      slideElements = mediaFiles.map(file => {
+        const slide = document.createElement('div');
+        slide.className = 'slide';
+
+        if (file.type.startsWith('image')) {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          img.classList.add('image-offset-inner');
+          slide.appendChild(img);
+        } else if (file.type.startsWith('video')) {
+          const video = document.createElement('video');
+          video.src = URL.createObjectURL(file);
+          video.muted = true;
+          video.autoplay = false;
+          video.controls = false;
+          slide.appendChild(video);
+        }
+        slideshowContainer.appendChild(slide);
+        return slide;
+      });
+    }
+
+    function startSlideshow() {
+      if (!slideElements.length) return;
+      showSlide(slideIndex);
+    }
+
+    function showSlide(index) {
+      slideElements.forEach((el, i) => {
+        el.classList.remove('active');
+        if (el.querySelector('video')) {
+          el.querySelector('video').pause();
+        }
+      });
+
+      const currentSlide = slideElements[index];
+      currentSlide.classList.add('active');
+
+      const video = currentSlide.querySelector('video');
+      if (video) {
+        video.currentTime = 0;
+        video.play();
+        video.onended = () => setTimeout(nextSlide, 1000);
+      } else {
+        setTimeout(nextSlide, 4000);
+      }
+    }
+
+    function nextSlide() {
+      slideIndex = (slideIndex + 1) % slideElements.length;
+      showSlide(slideIndex);
+    }
+  </script>
+</body>
+</html>
